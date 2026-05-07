@@ -189,7 +189,7 @@ if not df.empty:
 
     pct = (score / total * 100) if total > 0 else 0
 
-        col1, col2 = st.columns([1, 2])
+    col1, col2 = st.columns([1, 2])
 
     with col1:
         st.metric("Prix Actuel", f"{last['close']:.5f}")
