@@ -3,28 +3,23 @@ import pandas as pd
 import numpy as np
 import yfinance as yf
 import plotly.graph_objects as go
-# =========================================================================
-# SYSTÈDE DE SÉCURITÉ (MOT DE PASSE)
-# =========================================================================
+
+st.set_page_config(page_title="Sniper Engine LIVE", page_icon="🎯", layout="wide")
+
 if "logged_in" not in st.session_state:
     st.session_state["logged_in"] = False
 
 if not st.session_state["logged_in"]:
     st.title("🔒 Accès Restreint")
     st.markdown("Veuillez entrer le mot de passe pour accéder au moteur.")
-    
     pwd = st.text_input("Mot de passe :", type="password")
-    
     if st.button("Entrer"):
-        if pwd == "SNIPER2024":  # <--- CHANGE CE MOT DE PASSE ICI
+        if pwd == "SNIPER2024":
             st.session_state["logged_in"] = True
             st.rerun()
         else:
             st.error("❌ Mot de passe incorrect.")
-    
-    st.stop() # Cette commande magique bloque TOUT le reste du code si on n'est pas connecté
-# =========================================================================
-st.set_page_config(page_title="Sniper Engine LIVE", page_icon="🎯", layout="wide")
+    st.stop()
 
 st.sidebar.title("⚙️ Panneau de Configuration")
 st.sidebar.subheader("📊 Marché en Direct")
@@ -102,7 +97,6 @@ def calc_macd(close, fast, slow, signal):
     signal_line = calc_ema(macd_line, signal)
     return macd_line, signal_line
 
-st.markdown(f"### ⏳ Connexion au marché en cours pour {actif_choice}...")
 df = pd.DataFrame()
 
 try:
@@ -193,9 +187,6 @@ if not df.empty:
 
     with col1:
         st.metric("Prix Actuel", f"{last['close']:.5f}")
-        
-        # Barre de progression intuitive
-        color_progress = "green" if pct == 100 else "orange" if pct >= 50 else "red"
         st.progress(pct / 100)
         
         if pct == 100: st.success("🔥 SIGNAL PARFAIT LOCKED !")
@@ -205,7 +196,6 @@ if not df.empty:
         st.markdown("---")
         st.subheader("Radar de Confluence")
         
-        # NOUVEAU : Affichage en grille de tuiles (3 colonnes)
         grid_cols = st.columns(3)
         for i, detail in enumerate(details):
             with grid_cols[i % 3]:
@@ -217,17 +207,15 @@ if not df.empty:
     with col2:
         st.subheader(f"Graphique en Direct - {actif_choice}")
         
-        # NOUVEAU : Vrai graphique en Bougies (Chandeliers)
         fig = go.Figure(data=[go.Candlestick(
             x=df.index,
             open=df['open'], high=df['high'], low=df['low'], close=df['close'],
             increasing_line_color='green', decreasing_line_color='red'
         )])
         
-        # On enlève les marges inutiles et les grilles pour que ce soit propre
         fig.update_layout(
             xaxis_rangeslider_visible=False, 
-            template='plotly_dark', # Fond sombre pro
+            template='plotly_dark',
             margin=dict(l=0, r=0, t=30, b=0)
         )
         st.plotly_chart(fig, use_container_width=True)
