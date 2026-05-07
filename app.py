@@ -2,9 +2,64 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import yfinance as yf
+import json
+import os
 
 st.set_page_config(page_title="Sniper Engine LIVE", page_icon="🎯", layout="wide")
 
+# =========================================================================
+# SYSTÈME DE SAUVEGARDE (Mémoire de l'app)
+# =========================================================================
+CONFIG_FILE = "user_config.json"
+
+# Réglages d'usine par défaut
+DEFAULTS = {
+    "actif_choice": "EURUSD=X",
+    "ema_active": True, "ema_length": 200,
+    "bb_active": True, "bb_length": 20, "bb_mult": 2.0,
+    "adx_active": True, "adx_length": 14, "adx_thresh": 25,
+    "mom_active": True, "rsi_length": 14, "rsi_oversold": 30, "stoch_k": 14, "stoch_d": 3,
+    "div_active": True, "zz_left": 12, "macd_fast": 12, "macd_slow": 26, "macd_sig": 9,
+    "ha_active": True
+}
+
+def load_config():
+    if os.path.exists(CONFIG_FILE):
+        with open(CONFIG_FILE, "r") as f:
+            return json.load(f)
+    return DEFAULTS.copy()
+
+def save_config():
+    # On récupère uniquement les réglages qu'on veut sauvegarder
+    current_config = {
+        "actif_choice": st.session_state.get("actif_choice", DEFAULTS["actif_choice"]),
+        "ema_active": st.session_state.get("ema_active", DEFAULTS["ema_active"]),
+        "ema_length": st.session_state.get("ema_length", DEFAULTS["ema_length"]),
+        "bb_active": st.session_state.get("bb_active", DEFAULTS["bb_active"]),
+        "bb_length": st.session_state.get("bb_length", DEFAULTS["bb_length"]),
+        "bb_mult": st.session_state.get("bb_mult", DEFAULTS["bb_mult"]),
+        "adx_active": st.session_state.get("adx_active", DEFAULTS["adx_active"]),
+        "adx_length": st.session_state.get("adx_length", DEFAULTS["adx_length"]),
+        "adx_thresh": st.session_state.get("adx_thresh", DEFAULTS["adx_thresh"]),
+        "mom_active": st.session_state.get("mom_active", DEFAULTS["mom_active"]),
+        "rsi_length": st.session_state.get("rsi_length", DEFAULTS["rsi_length"]),
+        "rsi_oversold": st.session_state.get("rsi_oversold", DEFAULTS["rsi_oversold"]),
+        "stoch_k": st.session_state.get("stoch_k", DEFAULTS["stoch_k"]),
+        "stoch_d": st.session_state.get("stoch_d", DEFAULTS["stoch_d"]),
+        "div_active": st.session_state.get("div_active", DEFAULTS["div_active"]),
+        "zz_left": st.session_state.get("zz_left", DEFAULTS["zz_left"]),
+        "macd_fast": st.session_state.get("macd_fast", DEFAULTS["macd_fast"]),
+        "macd_slow": st.session_state.get("macd_slow", DEFAULTS["macd_slow"]),
+        "macd_sig": st.session_state.get("macd_sig", DEFAULTS["macd_sig"]),
+        "ha_active": st.session_state.get("ha_active", DEFAULTS["ha_active"])
+    }
+    with open(CONFIG_FILE, "w") as f:
+        json.dump(current_config, f, indent=4)
+    return True
+
+# =========================================================================
+# MOT DE PASSE
+# =========================================================================
 if "logged_in" not in st.session_state:
     st.session_state["logged_in"] = False
 
@@ -20,51 +75,67 @@ if not st.session_state["logged_in"]:
             st.error("❌ Mot de passe incorrect.")
     st.stop()
 
+# On charge les réglages en mémoire au démarrage
+saved_config = load_config()
+
+# =========================================================================
+# INTERFACE UTILISATEUR (On utilise saved_config au lieu des valeurs par défaut)
+# =========================================================================
 st.sidebar.title("⚙️ Panneau de Configuration")
+
 st.sidebar.subheader("📊 Marché en Direct")
-actif_choice = st.sidebar.text_input("Ticker (ex: EURUSD=X, BTC-USD)", value="EURUSD=X")
+actif_choice = st.sidebar.text_input("Ticker (ex: EURUSD=X, BTC-USD)", value=saved_config["actif_choice"], key="actif_choice")
 
 config = {}
 
 st.sidebar.subheader("1. Tendance")
-config['ema_active'] = st.toggle("EMA 200", value=True)
-if config['ema_active']: config['ema_length'] = st.slider("Longueur", 10, 500, 200, key="ema")
+config['ema_active'] = st.toggle("EMA 200", value=saved_config["ema_active"], key="ema_active")
+if config['ema_active']: config['ema_length'] = st.slider("Longueur", 10, 500, saved_config["ema_length"], key="ema_length")
 
 st.sidebar.subheader("2. Volatilité")
-config['bb_active'] = st.toggle("Bollinger Bands", value=True)
+config['bb_active'] = st.toggle("Bollinger Bands", value=saved_config["bb_active"], key="bb_active")
 if config['bb_active']:
-    config['bb_length'] = st.slider("Longueur", 5, 50, 20, key="bb_l")
-    config['bb_mult'] = st.slider("Écart", 0.5, 4.0, 2.0, 0.1, key="bb_m")
+    config['bb_length'] = st.slider("Longueur", 5, 50, saved_config["bb_length"], key="bb_length")
+    config['bb_mult'] = st.slider("Écart", 0.5, 4.0, saved_config["bb_mult"], 0.1, key="bb_mult")
 
 st.sidebar.subheader("3. Force")
-config['adx_active'] = st.toggle("ADX (Marché Calme)", value=True)
+config['adx_active'] = st.toggle("ADX (Marché Calme)", value=saved_config["adx_active"], key="adx_active")
 if config['adx_active']:
-    config['adx_length'] = st.slider("Longueur", 5, 50, 14, key="adx_l")
-    config['adx_thresh'] = st.slider("Seuil Max (<)", 10, 50, 25, key="adx_t")
+    config['adx_length'] = st.slider("Longueur", 5, 50, saved_config["adx_length"], key="adx_length")
+    config['adx_thresh'] = st.slider("Seuil Max (<)", 10, 50, saved_config["adx_thresh"], key="adx_thresh")
 
 st.sidebar.subheader("4. Momentum")
-config['mom_active'] = st.toggle("RSI + Stochastique", value=True)
+config['mom_active'] = st.toggle("RSI + Stochastique", value=saved_config["mom_active"], key="mom_active")
 if config['mom_active']:
-    config['rsi_length'] = st.slider("RSI Longueur", 5, 50, 14, key="rsi_l")
-    config['rsi_oversold'] = st.slider("RSI Survente (<)", 5, 40, 30, key="rsi_os")
-    config['stoch_k'] = st.slider("Stoch K", 5, 30, 14, key="stk")
-    config['stoch_d'] = st.slider("Stoch D", 1, 10, 3, key="std")
+    config['rsi_length'] = st.slider("RSI Longueur", 5, 50, saved_config["rsi_length"], key="rsi_length")
+    config['rsi_oversold'] = st.slider("RSI Survente (<)", 5, 40, saved_config["rsi_oversold"], key="rsi_oversold")
+    config['stoch_k'] = st.slider("Stoch K", 5, 30, saved_config["stoch_k"], key="stoch_k")
+    config['stoch_d'] = st.slider("Stoch D", 1, 10, saved_config["stoch_d"], key="stoch_d")
 
 st.sidebar.subheader("5. Structure (ZigZag)")
-config['div_active'] = st.toggle("Divergence MACD ZigZag", value=True)
+config['div_active'] = st.toggle("Divergence MACD ZigZag", value=saved_config["div_active"], key="div_active")
 if config['div_active']:
-    config['zz_left'] = st.slider("ZigZag Gauche", 3, 20, 12, key="zz_l")
-    config['macd_fast'] = st.slider("MACD Rapide", 5, 20, 12, key="mc_f")
-    config['macd_slow'] = st.slider("MACD Lent", 20, 50, 26, key="mc_s")
-    config['macd_sig'] = st.slider("MACD Signal", 5, 20, 9, key="mc_sgn")
+    config['zz_left'] = st.slider("ZigZag Gauche", 3, 20, saved_config["zz_left"], key="zz_left")
+    config['macd_fast'] = st.slider("MACD Rapide", 5, 20, saved_config["macd_fast"], key="macd_fast")
+    config['macd_slow'] = st.slider("MACD Lent", 20, 50, saved_config["macd_slow"], key="macd_slow")
+    config['macd_sig'] = st.slider("MACD Signal", 5, 20, saved_config["macd_sig"], key="macd_sig")
 
 st.sidebar.subheader("6. Confirmation")
-config['ha_active'] = st.toggle("Heikin Ashi (Sans mèche)", value=True)
+config['ha_active'] = st.toggle("Heikin Ashi (Sans mèche)", value=saved_config["ha_active"], key="ha_active")
 
 st.sidebar.markdown("---")
+
+# NOUVEAU BOUTON DE SAUVEGARDE
+if st.sidebar.button("💾 Sauvegarder mes réglages"):
+    if save_config():
+        st.sidebar.success("Réglages verrouillés !")
+
 if st.sidebar.button("🔄 Rafraîchir les données maintenant"):
     st.rerun()
 
+# =========================================================================
+# MOTEUR DE CALCUL MATHÉMATIQUE PUR
+# =========================================================================
 def calc_ema(series, period): return series.ewm(span=period, adjust=False).mean()
 
 def calc_rsi(series, period):
