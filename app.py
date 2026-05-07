@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import yfinance as yf
+import plotly.graph_objects as go
 # =========================================================================
 # SYSTÈDE DE SÉCURITÉ (MOT DE PASSE)
 # =========================================================================
@@ -188,11 +189,13 @@ if not df.empty:
 
     pct = (score / total * 100) if total > 0 else 0
 
-    col1, col2 = st.columns([1, 2])
+        col1, col2 = st.columns([1, 2])
 
     with col1:
         st.metric("Prix Actuel", f"{last['close']:.5f}")
-        st.metric("Score de Confluence", f"{pct:.0f}%", delta=f"{score} sur {total} conditions")
+        
+        # Barre de progression intuitive
+        color_progress = "green" if pct == 100 else "orange" if pct >= 50 else "red"
         st.progress(pct / 100)
         
         if pct == 100: st.success("🔥 SIGNAL PARFAIT LOCKED !")
@@ -200,9 +203,31 @@ if not df.empty:
         else: st.error("❌ Aucun signal")
         
         st.markdown("---")
-        st.subheader("Détail du Moteur")
-        for d in details: st.write(d)
+        st.subheader("Radar de Confluence")
+        
+        # NOUVEAU : Affichage en grille de tuiles (3 colonnes)
+        grid_cols = st.columns(3)
+        for i, detail in enumerate(details):
+            with grid_cols[i % 3]:
+                if "✅" in detail:
+                    st.success(detail)
+                else:
+                    st.error(detail)
 
     with col2:
-        st.subheader(f"Graphique Réel - {actif_choice}")
-        st.line_chart(df[['close']])
+        st.subheader(f"Graphique en Direct - {actif_choice}")
+        
+        # NOUVEAU : Vrai graphique en Bougies (Chandeliers)
+        fig = go.Figure(data=[go.Candlestick(
+            x=df.index,
+            open=df['open'], high=df['high'], low=df['low'], close=df['close'],
+            increasing_line_color='green', decreasing_line_color='red'
+        )])
+        
+        # On enlève les marges inutiles et les grilles pour que ce soit propre
+        fig.update_layout(
+            xaxis_rangeslider_visible=False, 
+            template='plotly_dark', # Fond sombre pro
+            margin=dict(l=0, r=0, t=30, b=0)
+        )
+        st.plotly_chart(fig, use_container_width=True)
